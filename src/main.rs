@@ -27,6 +27,7 @@ enum InputKind {
     StdIn,
     Url(url::Url),
     S3Bucket(String),
+    ScpSource(String),
 }
 
 #[derive(Debug)]
@@ -42,6 +43,10 @@ fn to_input(input: String) -> Input {
             Input {
                 kind: InputKind::S3Bucket(input),
             }
+        } else if input.starts_with("scp://") {
+            Input {
+                kind: InputKind::ScpSource(input),
+            }
         } else {
             // println!("Probably a url");
             Input {
@@ -52,12 +57,14 @@ fn to_input(input: String) -> Input {
         if is(Stream::Stdin) {
             println!("You said StdIn but you didn't pipe or redirect anything");
         }
-        // println!("Std In");
         Input {
             kind: InputKind::StdIn,
         }
+    } else if input.contains('@') && input.contains(':') {
+        Input {
+            kind: InputKind::ScpSource(input),
+        }
     } else {
-        // println!("Probabaly a file");
         Input {
             kind: InputKind::OrdinaryFile(PathBuf::from(input)),
         }
@@ -70,6 +77,7 @@ enum OutputKind {
     StdOut,
     Url(url::Url),
     S3Bucket(String),
+    ScpTarget(String),
 }
 
 #[derive(Debug)]
@@ -81,12 +89,14 @@ fn to_output(output: String) -> Output {
     let output_url = Url::parse(output.as_str());
     if output_url.is_ok() {
         if output.starts_with("s3://") {
-            // println!("S3 !!");
             Output {
                 kind: OutputKind::S3Bucket(output),
             }
+        } else if output.starts_with("scp://") {
+            Output {
+                kind: OutputKind::ScpTarget(output),
+            }
         } else {
-            // println!("Probably a url");
             Output {
                 kind: OutputKind::Url(output_url.unwrap()),
             }
@@ -95,12 +105,14 @@ fn to_output(output: String) -> Output {
         if is(Stream::Stdout) {
             println!("You said StdOut but you didn't pipe or redirect anything");
         }
-        // println!("Std Out");
         Output {
             kind: OutputKind::StdOut,
         }
+    } else if output.contains('@') && output.contains(':') {
+        Output {
+            kind: OutputKind::ScpTarget(output),
+        }
     } else {
-        // println!("Probabaly a file");
         Output {
             kind: OutputKind::OrdinaryFile(PathBuf::from(output)),
         }
