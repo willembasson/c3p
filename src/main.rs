@@ -4,6 +4,25 @@ use std::path::PathBuf;
 use url::Url;
 
 #[derive(Parser)]
+#[command(name = "C3P(No O)")]
+#[command(bin_name = "c3p")]
+#[command(author = "Willem B. <willem.basson@gmail.com>")]
+#[command(about = "
+ 🤖　 　　,,''´ ￣ ヽ
+　　 　　| |__　 _　|
+　 　 　 {{‐'(👁 )Y(👁 )}
+  　 　　 !l_l__V^`r'/
+　 　　　 ~lr､i_ﾆ_l,'
+　　,. r-‐‐]l===l[‐--,r- ､
+　 〉､l!　　　｀Y´o　　l!ﾞ,
+. //　〉､＿＿L＿＿/il〈.　ﾍ
+//　/ }　,'´￣｀ヽ＿{ ﾊV_,ﾍ
+
+
+  ___  ____  ____
+ / __)( __ \\(  _ \\
+( (__  (__ ( ) __/
+ \\___)(____/(__)")]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     /// Input to operate on (Use - if you pipe from StdIn)
@@ -21,7 +40,7 @@ struct Cli {
     output: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum InputKind {
     OrdinaryFile(PathBuf),
     StdIn,
@@ -71,7 +90,7 @@ fn to_input(input: String) -> Input {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum OutputKind {
     OrdinaryFile(PathBuf),
     StdOut,
@@ -141,5 +160,84 @@ fn main() {
 
     if let Some(config_path) = cli.config.as_deref() {
         println!("Value for config: {}", config_path.display());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_input_s3() {
+        let bucket = "s3://some_bucket";
+        let input = to_input(bucket.to_string());
+        assert_eq!(InputKind::S3Bucket(bucket.to_string()), input.kind);
+    }
+
+    #[test]
+    fn test_to_input_stdin() {
+        let input = to_input("-".to_string());
+        assert_eq!(InputKind::StdIn, input.kind);
+    }
+
+    #[test]
+    fn test_to_input_scp() {
+        let source = "some_user@some_host:~/";
+        let input = to_input(source.to_string());
+        assert_eq!(InputKind::ScpSource(source.to_string()), input.kind);
+    }
+
+    #[test]
+    fn test_to_input_file() {
+        let source = "/some/path/file.txt";
+        let input = to_input(source.to_string());
+        assert_eq!(
+            InputKind::OrdinaryFile(PathBuf::from(source.to_string())),
+            input.kind
+        );
+    }
+
+    #[test]
+    fn test_to_input_url() {
+        let source = "http://some_site.com/some/path/";
+        let input = to_input(source.to_string());
+        assert_eq!(InputKind::Url(Url::parse(source).unwrap()), input.kind);
+    }
+
+    #[test]
+    fn test_to_output_s3() {
+        let bucket = "s3://some_bucket";
+        let output = to_output(bucket.to_string());
+        assert_eq!(OutputKind::S3Bucket(bucket.to_string()), output.kind);
+    }
+
+    #[test]
+    fn test_to_output_stdout() {
+        let output = to_output("-".to_string());
+        assert_eq!(OutputKind::StdOut, output.kind);
+    }
+
+    #[test]
+    fn test_to_output_scp() {
+        let target = "some_user@some_host:~/";
+        let output = to_output(target.to_string());
+        assert_eq!(OutputKind::ScpTarget(target.to_string()), output.kind);
+    }
+
+    #[test]
+    fn test_to_output_file() {
+        let target = "/some/path/file.txt";
+        let output = to_output(target.to_string());
+        assert_eq!(
+            OutputKind::OrdinaryFile(PathBuf::from(target.to_string())),
+            output.kind
+        );
+    }
+
+    #[test]
+    fn test_to_output_url() {
+        let target = "http://some_site.com/some/path/";
+        let output = to_output(target.to_string());
+        assert_eq!(OutputKind::Url(Url::parse(target).unwrap()), output.kind);
     }
 }
