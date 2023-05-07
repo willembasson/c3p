@@ -127,12 +127,18 @@ fn main() {
         let input_string = input.to_string();
         let input: Input = to_input(input_string);
         println!("{:#?}", input.kind);
+    } else {
+        println!("No input defined");
     }
+
     if let Some(output) = cli.output.as_deref() {
         let output_string = output.to_string();
         let output: Output = to_output(output_string);
         println!("{:#?}", output.kind);
+    } else {
+        println!("No output defined");
     }
+
     if let Some(config_path) = cli.config.as_deref() {
         println!("Value for config: {}", config_path.display());
     }
