@@ -38,12 +38,12 @@ fn to_input(input: String) -> Input {
     let input_url = Url::parse(input.as_str());
     if input_url.is_ok() {
         if input.starts_with("s3://") {
-            println!("S3 !!");
+            // println!("S3 !!");
             Input {
                 kind: InputKind::S3Bucket(input),
             }
         } else {
-            println!("Probably a url");
+            // println!("Probably a url");
             Input {
                 kind: InputKind::Url(input_url.unwrap()),
             }
@@ -52,12 +52,12 @@ fn to_input(input: String) -> Input {
         if is(Stream::Stdin) {
             println!("You said StdIn but you didn't pipe or redirect anything");
         }
-        println!("Std In");
+        // println!("Std In");
         Input {
             kind: InputKind::StdIn,
         }
     } else {
-        println!("Probabaly a file");
+        // println!("Probabaly a file");
         Input {
             kind: InputKind::OrdinaryFile(PathBuf::from(input)),
         }
@@ -81,12 +81,12 @@ fn to_output(output: String) -> Output {
     let output_url = Url::parse(output.as_str());
     if output_url.is_ok() {
         if output.starts_with("s3://") {
-            println!("S3 !!");
+            // println!("S3 !!");
             Output {
                 kind: OutputKind::S3Bucket(output),
             }
         } else {
-            println!("Probably a url");
+            // println!("Probably a url");
             Output {
                 kind: OutputKind::Url(output_url.unwrap()),
             }
@@ -95,12 +95,12 @@ fn to_output(output: String) -> Output {
         if is(Stream::Stdout) {
             println!("You said StdOut but you didn't pipe or redirect anything");
         }
-        println!("Std Out");
+        // println!("Std Out");
         Output {
             kind: OutputKind::StdOut,
         }
     } else {
-        println!("Probabaly a file");
+        // println!("Probabaly a file");
         Output {
             kind: OutputKind::OrdinaryFile(PathBuf::from(output)),
         }
@@ -114,12 +114,12 @@ fn main() {
     if let Some(input) = cli.input.as_deref() {
         let input_string = input.to_string();
         let input: Input = to_input(input_string);
-        println!("{:#?}", input);
+        println!("{:#?}", input.kind);
     }
     if let Some(output) = cli.output.as_deref() {
         let output_string = output.to_string();
         let output: Output = to_output(output_string);
-        println!("{:#?}", output);
+        println!("{:#?}", output.kind);
     }
     if let Some(config_path) = cli.config.as_deref() {
         println!("Value for config: {}", config_path.display());
