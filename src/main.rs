@@ -51,10 +51,9 @@ struct Input {
 }
 
 fn to_input(input: String) -> Input {
-    let input_url = Url::parse(input.as_str());
-    if input_url.is_ok() {
+    let input_url_result = Url::parse(input.as_str());
+    if let Ok(input_url) = input_url_result {
         if input.starts_with("s3://") {
-            // println!("S3 !!");
             Input {
                 kind: InputKind::S3Bucket(input),
             }
@@ -63,9 +62,8 @@ fn to_input(input: String) -> Input {
                 kind: InputKind::ScpSource(input),
             }
         } else {
-            // println!("Probably a url");
             Input {
-                kind: InputKind::Url(input_url.unwrap()),
+                kind: InputKind::Url(input_url),
             }
         }
     } else if input == "-" {
@@ -101,8 +99,8 @@ struct Output {
 }
 
 fn to_output(output: String) -> Output {
-    let output_url = Url::parse(output.as_str());
-    if output_url.is_ok() {
+    let output_url_result = Url::parse(output.as_str());
+    if let Ok(output_url) = output_url_result {
         if output.starts_with("s3://") {
             Output {
                 kind: OutputKind::S3Bucket(output),
@@ -113,7 +111,7 @@ fn to_output(output: String) -> Output {
             }
         } else {
             Output {
-                kind: OutputKind::Url(output_url.unwrap()),
+                kind: OutputKind::Url(output_url),
             }
         }
     } else if output == "-" {
