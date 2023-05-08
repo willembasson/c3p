@@ -32,10 +32,6 @@ struct Cli {
     #[arg(short, long, value_name = "FILE")]
     config: Option<PathBuf>,
 
-    /// Turn debugging information on
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    debug: u8,
-
     /// Output to operate on (Use - to pipe to StdOut)
     output: Option<String>,
 }
