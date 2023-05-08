@@ -1,4 +1,5 @@
 # c3p - a copy tool that supports files, s3, scp and URLs (and counting)
+## Work in progress, not usable yet
 
 ```
 All your copies R mine
