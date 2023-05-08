@@ -8,6 +8,7 @@ use url::Url;
 #[command(bin_name = "c3p")]
 #[command(author = "Willem B. <willem.basson@gmail.com>")]
 #[command(about = "
+All your copies R mine
  🤖　 　　,,''´ ￣ ヽ
 　　 　　| |__　 _　|
 　 　 　 {{‐'(👁 )Y(👁 )}
