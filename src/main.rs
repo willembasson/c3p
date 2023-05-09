@@ -1,5 +1,6 @@
 use atty::{is, Stream};
 use clap::Parser;
+use std::fs;
 use std::path::PathBuf;
 use url::Url;
 
@@ -38,17 +39,18 @@ struct Cli {
 }
 
 #[derive(Debug, PartialEq)]
-enum InputKind {
-    OrdinaryFile(PathBuf),
+pub enum InputKind {
+    OrdinaryFile,
     StdIn,
     Url(url::Url),
-    S3Bucket(String),
-    ScpSource(String),
+    S3Bucket,
+    ScpSource,
 }
 
 #[derive(Debug)]
 struct Input {
     kind: InputKind,
+    reference: String,
 }
 
 fn to_input(input: String) -> Input {
@@ -56,15 +58,18 @@ fn to_input(input: String) -> Input {
     if let Ok(input_url) = input_url_result {
         if input.starts_with("s3://") {
             Input {
-                kind: InputKind::S3Bucket(input),
+                kind: InputKind::S3Bucket,
+                reference: input,
             }
         } else if input.starts_with("scp://") {
             Input {
-                kind: InputKind::ScpSource(input),
+                kind: InputKind::ScpSource,
+                reference: input,
             }
         } else {
             Input {
                 kind: InputKind::Url(input_url),
+                reference: input,
             }
         }
     } else if input == "-" {
@@ -73,30 +78,34 @@ fn to_input(input: String) -> Input {
         }
         Input {
             kind: InputKind::StdIn,
+            reference: input,
         }
     } else if input.contains('@') && input.contains(':') {
         Input {
-            kind: InputKind::ScpSource(input),
+            kind: InputKind::ScpSource,
+            reference: input,
         }
     } else {
         Input {
-            kind: InputKind::OrdinaryFile(PathBuf::from(input)),
+            kind: InputKind::OrdinaryFile,
+            reference: input,
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
-enum OutputKind {
-    OrdinaryFile(PathBuf),
+pub enum OutputKind {
+    OrdinaryFile,
     StdOut,
     Url(url::Url),
-    S3Bucket(String),
-    ScpTarget(String),
+    S3Bucket,
+    ScpTarget,
 }
 
 #[derive(Debug)]
 struct Output {
     kind: OutputKind,
+    reference: String,
 }
 
 fn to_output(output: String) -> Output {
@@ -104,15 +113,18 @@ fn to_output(output: String) -> Output {
     if let Ok(output_url) = output_url_result {
         if output.starts_with("s3://") {
             Output {
-                kind: OutputKind::S3Bucket(output),
+                kind: OutputKind::S3Bucket,
+                reference: output,
             }
         } else if output.starts_with("scp://") {
             Output {
-                kind: OutputKind::ScpTarget(output),
+                kind: OutputKind::ScpTarget,
+                reference: output,
             }
         } else {
             Output {
                 kind: OutputKind::Url(output_url),
+                reference: output,
             }
         }
     } else if output == "-" {
@@ -121,14 +133,37 @@ fn to_output(output: String) -> Output {
         }
         Output {
             kind: OutputKind::StdOut,
+            reference: output,
         }
     } else if output.contains('@') && output.contains(':') {
         Output {
-            kind: OutputKind::ScpTarget(output),
+            kind: OutputKind::ScpTarget,
+            reference: output,
         }
     } else {
         Output {
-            kind: OutputKind::OrdinaryFile(PathBuf::from(output)),
+            kind: OutputKind::OrdinaryFile,
+            reference: output,
+        }
+    }
+}
+
+fn copy(input: Input, output: Output) {
+    match input.kind {
+        Input::OrdinaryFile => {
+            match output.kind {
+                // Normal file to file copy
+                // Lets do std::fs::copy for now
+                Output::OrdinaryFile => {
+                    fs::copy(input.reference, output.reference);
+                }
+                _ => {
+                    todo!()
+                }
+            };
+        }
+        _ => {
+            todo!()
         }
     }
 }
@@ -141,16 +176,17 @@ fn main() {
         let input_string = input.to_string();
         let input: Input = to_input(input_string);
         println!("{:#?}", input.kind);
+
+        if let Some(output) = cli.output.as_deref() {
+            let output_string = output.to_string();
+            let output: Output = to_output(output_string);
+            println!("{:#?}", output.kind);
+            copy(input, output);
+        } else {
+            println!("No output defined");
+        }
     } else {
         println!("No input defined");
-    }
-
-    if let Some(output) = cli.output.as_deref() {
-        let output_string = output.to_string();
-        let output: Output = to_output(output_string);
-        println!("{:#?}", output.kind);
-    } else {
-        println!("No output defined");
     }
 
     if let Some(config_path) = cli.config.as_deref() {
@@ -166,7 +202,8 @@ mod tests {
     fn test_to_input_s3() {
         let bucket = "s3://some_bucket";
         let input = to_input(bucket.to_string());
-        assert_eq!(InputKind::S3Bucket(bucket.to_string()), input.kind);
+        assert_eq!(InputKind::S3Bucket, input.kind);
+        assert_eq!(bucket, input.reference);
     }
 
     #[test]
@@ -179,17 +216,16 @@ mod tests {
     fn test_to_input_scp() {
         let source = "some_user@some_host:~/";
         let input = to_input(source.to_string());
-        assert_eq!(InputKind::ScpSource(source.to_string()), input.kind);
+        assert_eq!(InputKind::ScpSource, input.kind);
+        assert_eq!(source, input.reference);
     }
 
     #[test]
     fn test_to_input_file() {
         let source = "/some/path/file.txt";
         let input = to_input(source.to_string());
-        assert_eq!(
-            InputKind::OrdinaryFile(PathBuf::from(source.to_string())),
-            input.kind
-        );
+        assert_eq!(InputKind::OrdinaryFile, input.kind);
+        assert_eq!(source, input.reference);
     }
 
     #[test]
@@ -197,13 +233,15 @@ mod tests {
         let source = "http://some_site.com/some/path/";
         let input = to_input(source.to_string());
         assert_eq!(InputKind::Url(Url::parse(source).unwrap()), input.kind);
+        assert_eq!(source, input.reference);
     }
 
     #[test]
     fn test_to_output_s3() {
         let bucket = "s3://some_bucket";
         let output = to_output(bucket.to_string());
-        assert_eq!(OutputKind::S3Bucket(bucket.to_string()), output.kind);
+        assert_eq!(OutputKind::S3Bucket, output.kind);
+        assert_eq!(bucket, output.reference);
     }
 
     #[test]
@@ -216,17 +254,16 @@ mod tests {
     fn test_to_output_scp() {
         let target = "some_user@some_host:~/";
         let output = to_output(target.to_string());
-        assert_eq!(OutputKind::ScpTarget(target.to_string()), output.kind);
+        assert_eq!(OutputKind::ScpTarget, output.kind);
+        assert_eq!(target, output.reference);
     }
 
     #[test]
     fn test_to_output_file() {
         let target = "/some/path/file.txt";
         let output = to_output(target.to_string());
-        assert_eq!(
-            OutputKind::OrdinaryFile(PathBuf::from(target.to_string())),
-            output.kind
-        );
+        assert_eq!(OutputKind::OrdinaryFile, output.kind);
+        assert_eq!(target, output.reference);
     }
 
     #[test]
@@ -234,5 +271,6 @@ mod tests {
         let target = "http://some_site.com/some/path/";
         let output = to_output(target.to_string());
         assert_eq!(OutputKind::Url(Url::parse(target).unwrap()), output.kind);
+        assert_eq!(target, output.reference);
     }
 }
