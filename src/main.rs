@@ -1,5 +1,6 @@
 use atty::{is, Stream};
 use clap::Parser;
+use std::fs;
 use std::path::PathBuf;
 use url::Url;
 
@@ -39,7 +40,7 @@ struct Cli {
 
 #[derive(Debug, PartialEq)]
 enum InputKind {
-    OrdinaryFile(PathBuf),
+    OrdinaryFile(String),
     StdIn,
     Url(url::Url),
     S3Bucket(String),
@@ -80,14 +81,14 @@ fn to_input(input: String) -> Input {
         }
     } else {
         Input {
-            kind: InputKind::OrdinaryFile(PathBuf::from(input)),
+            kind: InputKind::OrdinaryFile(input),
         }
     }
 }
 
 #[derive(Debug, PartialEq)]
 enum OutputKind {
-    OrdinaryFile(PathBuf),
+    OrdinaryFile(String),
     StdOut,
     Url(url::Url),
     S3Bucket(String),
@@ -128,7 +129,27 @@ fn to_output(output: String) -> Output {
         }
     } else {
         Output {
-            kind: OutputKind::OrdinaryFile(PathBuf::from(output)),
+            kind: OutputKind::OrdinaryFile(output),
+        }
+    }
+}
+
+fn copy(input: Input, output: Output) {
+    match input.kind {
+        InputKind::OrdinaryFile(input_path) => {
+            match output.kind {
+                // Normal file to file copy
+                // Lets do std::fs::copy for now
+                OutputKind::OrdinaryFile(output_path) => {
+                    fs::copy(input_path, output_path);
+                }
+                _ => {
+                    todo!()
+                }
+            };
+        }
+        _ => {
+            todo!()
         }
     }
 }
@@ -141,16 +162,17 @@ fn main() {
         let input_string = input.to_string();
         let input: Input = to_input(input_string);
         println!("{:#?}", input.kind);
+
+        if let Some(output) = cli.output.as_deref() {
+            let output_string = output.to_string();
+            let output: Output = to_output(output_string);
+            println!("{:#?}", output.kind);
+            copy(input, output);
+        } else {
+            println!("No output defined");
+        }
     } else {
         println!("No input defined");
-    }
-
-    if let Some(output) = cli.output.as_deref() {
-        let output_string = output.to_string();
-        let output: Output = to_output(output_string);
-        println!("{:#?}", output.kind);
-    } else {
-        println!("No output defined");
     }
 
     if let Some(config_path) = cli.config.as_deref() {
@@ -186,10 +208,7 @@ mod tests {
     fn test_to_input_file() {
         let source = "/some/path/file.txt";
         let input = to_input(source.to_string());
-        assert_eq!(
-            InputKind::OrdinaryFile(PathBuf::from(source.to_string())),
-            input.kind
-        );
+        assert_eq!(InputKind::OrdinaryFile(source.to_string()), input.kind);
     }
 
     #[test]
@@ -223,10 +242,7 @@ mod tests {
     fn test_to_output_file() {
         let target = "/some/path/file.txt";
         let output = to_output(target.to_string());
-        assert_eq!(
-            OutputKind::OrdinaryFile(PathBuf::from(target.to_string())),
-            output.kind
-        );
+        assert_eq!(OutputKind::OrdinaryFile(target.to_string()), output.kind);
     }
 
     #[test]
