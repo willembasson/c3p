@@ -22,4 +22,23 @@ All your copies R mine
 Usage: c3p [OPTIONS] [INPUT] [OUTPUT]
 ```
 
+### Normal copy
+`c3p /home/my_user/file.txt /tmp/file.txt`
+
+### Copy from s3 to s3
+`c3p s3://source_bucket/folder/file.txt s3://target_bucket/folder/file.txt`
+
+### Copy from scp to scp
+`c3p me@server.com:~/.barshrc you@other_server.com:~/`
+
+### Copy from url to file
+`c3p http://www.server.com/path/file.txt /tmp/file.txt`
+
+### Copy stdin to file
+`cat some_file.txt | c3p - /tmp/file.txt`
+
+### Copy file to std_out
+`c3p /tmp/file.txt - | cat`
+
+
 
