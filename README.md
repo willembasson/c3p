@@ -25,7 +25,7 @@ Usage: c3p [OPTIONS] [INPUT] [OUTPUT]
 ### Normal copy
 `c3p /home/my_user/file.txt /tmp/file.txt`
 
-### Copy from url to file (WIP)
+### Copy from url to file
 `c3p http://www.server.com/path/file.txt /tmp/file.txt`
 
 ### Copy from s3 to s3 (Not implemented yet)

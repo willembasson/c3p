@@ -1,7 +1,8 @@
 use atty::{is, Stream};
 use clap::Parser;
 use futures_util::StreamExt;
-use kdam::{tqdm, BarExt};
+use kdam::term::Colorizer;
+use kdam::{tqdm, BarExt, Column, RichProgress};
 
 use std::fs;
 use std::fs::File;
@@ -141,22 +142,47 @@ fn to_output(output: String) -> Output {
 
 async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
-    let reqwest_url = reqwest::Url::parse(url).unwrap();
-    let res = client.get(reqwest_url).send().await.unwrap();
+    let res = client.get(url).send().await.unwrap();
     let total_size = res
         .content_length()
         .ok_or(format!("Failed to get content length from '{}'", &url))?;
     let mut file =
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
     let mut stream = res.bytes_stream();
-    let mut pb = tqdm!(total = total_size as usize);
+    let mut pb = RichProgress::new(
+        tqdm!(
+            total = total_size as usize,
+            unit_scale = true,
+            unit_divisor = 1024,
+            unit = "B"
+        ),
+        vec![
+            Column::Spinner(
+                "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+                    .chars()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+                80.0,
+                1.0,
+            ),
+            Column::text("[bold blue]?"),
+            Column::Bar,
+            Column::Percentage(1),
+            Column::text("•"),
+            Column::CountTotal,
+            Column::text("•"),
+            Column::Rate,
+            Column::text("•"),
+            Column::RemainingTime,
+        ],
+    );
     while let Some(item) = stream.next().await {
         let chunk = item.or(Err("Error while downloading file".to_string()))?;
         file.write_all(&chunk)
             .or(Err("Error while writing to file".to_string()))?;
         pb.update(chunk.len());
     }
-    pb.refresh();
+    pb.write("downloaded".colorize("bold green"));
     Ok(())
 }
 
@@ -164,8 +190,6 @@ async fn copy(input: Input, output: Output) {
     match input.kind {
         InputKind::OrdinaryFile(input_path) => {
             match output.kind {
-                // Normal file to file copy
-                // Lets do std::fs::copy for now
                 OutputKind::OrdinaryFile(output_path) => {
                     fs::copy(input_path, output_path).unwrap();
                 }
@@ -176,8 +200,6 @@ async fn copy(input: Input, output: Output) {
         }
         InputKind::Url(_url) => {
             match output.kind {
-                // Normal file to file copy
-                // Lets do std::fs::copy for now
                 OutputKind::OrdinaryFile(output_path) => {
                     download_file(_url.as_ref(), &output_path).await.unwrap();
                 }
@@ -195,13 +217,10 @@ async fn copy(input: Input, output: Output) {
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-
-    // You can check the value provided by positional arguments, or option arguments
     if let Some(input) = cli.input.as_deref() {
         let input_string = input.to_string();
         let input: Input = to_input(input_string);
         println!("{:#?}", input.kind);
-
         if let Some(output) = cli.output.as_deref() {
             let output_string = output.to_string();
             let output: Output = to_output(output_string);
@@ -213,7 +232,6 @@ async fn main() {
     } else {
         println!("No input defined");
     }
-
     if let Some(config_path) = cli.config.as_deref() {
         println!("Value for config: {}", config_path.display());
     }
