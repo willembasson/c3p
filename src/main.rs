@@ -1,6 +1,11 @@
 use atty::{is, Stream};
 use clap::Parser;
+use futures_util::StreamExt;
+use kdam::{tqdm, BarExt};
+
 use std::fs;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 use url::Url;
 
@@ -134,14 +139,47 @@ fn to_output(output: String) -> Output {
     }
 }
 
-fn copy(input: Input, output: Output) {
+async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let reqwest_url = reqwest::Url::parse(url).unwrap();
+    let res = client.get(reqwest_url).send().await.unwrap();
+    let total_size = res
+        .content_length()
+        .ok_or(format!("Failed to get content length from '{}'", &url))?;
+    let mut file =
+        File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
+    let mut stream = res.bytes_stream();
+    let mut pb = tqdm!(total = total_size as usize);
+    while let Some(item) = stream.next().await {
+        let chunk = item.or(Err("Error while downloading file".to_string()))?;
+        file.write_all(&chunk)
+            .or(Err("Error while writing to file".to_string()))?;
+        pb.update(chunk.len());
+    }
+    pb.refresh();
+    Ok(())
+}
+
+async fn copy(input: Input, output: Output) {
     match input.kind {
         InputKind::OrdinaryFile(input_path) => {
             match output.kind {
                 // Normal file to file copy
                 // Lets do std::fs::copy for now
                 OutputKind::OrdinaryFile(output_path) => {
-                    fs::copy(input_path, output_path);
+                    fs::copy(input_path, output_path).unwrap();
+                }
+                _ => {
+                    todo!()
+                }
+            };
+        }
+        InputKind::Url(_url) => {
+            match output.kind {
+                // Normal file to file copy
+                // Lets do std::fs::copy for now
+                OutputKind::OrdinaryFile(output_path) => {
+                    download_file(_url.as_ref(), &output_path).await.unwrap();
                 }
                 _ => {
                     todo!()
@@ -154,7 +192,8 @@ fn copy(input: Input, output: Output) {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     // You can check the value provided by positional arguments, or option arguments
@@ -167,7 +206,7 @@ fn main() {
             let output_string = output.to_string();
             let output: Output = to_output(output_string);
             println!("{:#?}", output.kind);
-            copy(input, output);
+            copy(input, output).await;
         } else {
             println!("No output defined");
         }
