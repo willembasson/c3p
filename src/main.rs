@@ -2,7 +2,7 @@ use atty::{is, Stream};
 use clap::Parser;
 use futures_util::StreamExt;
 use kdam::{tqdm, BarExt};
-use reqwest::Client;
+
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -148,17 +148,16 @@ pub async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
         .ok_or(format!("Failed to get content length from '{}'", &url))?;
     let mut file =
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
-    let mut downloaded: usize = 0;
     let mut stream = res.bytes_stream();
     let mut pb = tqdm!(total = total_size as usize);
     while let Some(item) = stream.next().await {
-        let chunk = item.or(Err(format!("Error while downloading file")))?;
+        let chunk = item.or(Err("Error while downloading file".to_string()))?;
         file.write_all(&chunk)
-            .or(Err(format!("Error while writing to file")))?;
-        pb.update(chunk.len() as usize);
+            .or(Err("Error while writing to file".to_string()))?;
+        pb.update(chunk.len());
     }
     pb.refresh();
-    return Ok(());
+    Ok(())
 }
 
 fn copy(input: Input, output: Output) {
@@ -168,18 +167,18 @@ fn copy(input: Input, output: Output) {
                 // Normal file to file copy
                 // Lets do std::fs::copy for now
                 OutputKind::OrdinaryFile(output_path) => {
-                    fs::copy(input_path, output_path);
+                    fs::copy(input_path, output_path).unwrap();
                 }
                 _ => {
                     todo!()
                 }
             };
         }
-        InputKind::Url(url) => {
+        InputKind::Url(_url) => {
             match output.kind {
                 // Normal file to file copy
                 // Lets do std::fs::copy for now
-                OutputKind::OrdinaryFile(output_path) => {}
+                OutputKind::OrdinaryFile(_output_path) => {}
                 _ => {
                     todo!()
                 }
