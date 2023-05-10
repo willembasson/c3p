@@ -141,8 +141,8 @@ fn to_output(output: String) -> Output {
 
 async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
-    let reqwest_url = reqwest::Url::parse(url).unwrap();
-    let res = client.get(reqwest_url).send().await.unwrap();
+    let res = client.get(url).send().await.unwrap();
+
     let total_size = res
         .content_length()
         .ok_or(format!("Failed to get content length from '{}'", &url))?;
