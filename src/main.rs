@@ -160,7 +160,7 @@ pub async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn copy(input: Input, output: Output) {
+async fn copy(input: Input, output: Output) {
     match input.kind {
         InputKind::OrdinaryFile(input_path) => {
             match output.kind {
@@ -179,7 +179,7 @@ fn copy(input: Input, output: Output) {
                 // Normal file to file copy
                 // Lets do std::fs::copy for now
                 OutputKind::OrdinaryFile(output_path) => {
-                    download_file(&_url.to_string(), &output_path);
+                    download_file(_url.as_ref(), &output_path).await.unwrap();
                 }
                 _ => {
                     todo!()
@@ -192,7 +192,8 @@ fn copy(input: Input, output: Output) {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     // You can check the value provided by positional arguments, or option arguments
