@@ -139,7 +139,7 @@ fn to_output(output: String) -> Output {
     }
 }
 
-pub async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
+async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
     let reqwest_url = reqwest::Url::parse(url).unwrap();
     let res = client.get(reqwest_url).send().await.unwrap();
@@ -206,7 +206,7 @@ async fn main() {
             let output_string = output.to_string();
             let output: Output = to_output(output_string);
             println!("{:#?}", output.kind);
-            copy(input, output);
+            copy(input, output).await;
         } else {
             println!("No output defined");
         }
