@@ -178,7 +178,9 @@ fn copy(input: Input, output: Output) {
             match output.kind {
                 // Normal file to file copy
                 // Lets do std::fs::copy for now
-                OutputKind::OrdinaryFile(_output_path) => {}
+                OutputKind::OrdinaryFile(output_path) => {
+                    download_file(&_url.to_string(), &output_path);
+                }
                 _ => {
                     todo!()
                 }
