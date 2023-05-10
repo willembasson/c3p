@@ -142,7 +142,6 @@ fn to_output(output: String) -> Output {
 async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
     let res = client.get(url).send().await.unwrap();
-
     let total_size = res
         .content_length()
         .ok_or(format!("Failed to get content length from '{}'", &url))?;
@@ -164,8 +163,6 @@ async fn copy(input: Input, output: Output) {
     match input.kind {
         InputKind::OrdinaryFile(input_path) => {
             match output.kind {
-                // Normal file to file copy
-                // Lets do std::fs::copy for now
                 OutputKind::OrdinaryFile(output_path) => {
                     fs::copy(input_path, output_path).unwrap();
                 }
@@ -176,8 +173,6 @@ async fn copy(input: Input, output: Output) {
         }
         InputKind::Url(_url) => {
             match output.kind {
-                // Normal file to file copy
-                // Lets do std::fs::copy for now
                 OutputKind::OrdinaryFile(output_path) => {
                     download_file(_url.as_ref(), &output_path).await.unwrap();
                 }
