@@ -165,7 +165,7 @@ async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
                 80.0,
                 1.0,
             ),
-            Column::text("[bold blue]?"),
+            Column::text("🏎"),
             Column::Bar,
             Column::Percentage(1),
             Column::text("•"),
