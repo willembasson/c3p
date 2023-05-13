@@ -28,6 +28,9 @@ Usage: c3p [OPTIONS] [INPUT] [OUTPUT]
 ### Copy from url to file
 `c3p http://www.server.com/path/file.txt /tmp/file.txt`
 
+### Copy from s3 to file (AWS CLI config needs to be set up first)
+`c3p s3://source_bucket/folder/file.txt /tmp/file.txt`
+
 ### Copy from s3 to s3 (Not implemented yet)
 `c3p s3://source_bucket/folder/file.txt s3://target_bucket/folder/file.txt`
 
