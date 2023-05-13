@@ -1,9 +1,11 @@
 use atty::{is, Stream};
+use aws_sdk_s3::Client;
 use clap::Parser;
 use futures_util::StreamExt;
+use futures_util::TryStreamExt;
 use kdam::term::Colorizer;
 use kdam::{tqdm, BarExt, Column, RichProgress};
-
+use regex::Regex;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -140,6 +142,65 @@ fn to_output(output: String) -> Output {
     }
 }
 
+async fn download_from_s3(input: &str, output_path: &str) -> Result<(), String> {
+    let shared_config = aws_config::from_env().load().await;
+    let client = Client::new(&shared_config);
+    let re = Regex::new(r"^s3://(.+?)/(.*)").unwrap();
+    let caps = re.captures(input).unwrap();
+    let bucket = &caps[1];
+    let file = &caps[2];
+    println!("bucket {}, file {}", bucket, file);
+    let mut object = client
+        .get_object()
+        .bucket(bucket)
+        .key(file.to_string())
+        .send()
+        .await
+        .or(Err(format!("Failed to get s3 file {}/{}", bucket, file)))?;
+    let total_size = object.content_length();
+    let mut file =
+        File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
+    let mut pb = RichProgress::new(
+        tqdm!(
+            total = total_size as usize,
+            unit_scale = true,
+            unit_divisor = 1024,
+            unit = "B"
+        ),
+        vec![
+            Column::Spinner(
+                "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+                    .chars()
+                    .map(|x| x.to_string())
+                    .collect::<Vec<String>>(),
+                80.0,
+                1.0,
+            ),
+            Column::text("🏎"),
+            Column::Bar,
+            Column::Percentage(1),
+            Column::text("•"),
+            Column::CountTotal,
+            Column::text("•"),
+            Column::Rate,
+            Column::text("•"),
+            Column::RemainingTime,
+        ],
+    );
+    while let Some(bytes) = object
+        .body
+        .try_next()
+        .await
+        .or(Err(format!("Failed to get bytes from stream")))?
+    {
+        //let chunk = item.or(Err("Error while downloading file".to_string()))?;
+        file.write_all(&bytes)
+            .or(Err("Error while writing to file".to_string()))?;
+        pb.update(bytes.len());
+    }
+    Ok(())
+}
+
 async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     let client = reqwest::Client::new();
     let res = client.get(url).send().await.unwrap();
@@ -165,7 +226,7 @@ async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
                 80.0,
                 1.0,
             ),
-            Column::text("[bold blue]?"),
+            Column::text("🏎"),
             Column::Bar,
             Column::Percentage(1),
             Column::text("•"),
@@ -202,6 +263,18 @@ async fn copy(input: Input, output: Output) {
             match output.kind {
                 OutputKind::OrdinaryFile(output_path) => {
                     download_file(_url.as_ref(), &output_path).await.unwrap();
+                }
+                _ => {
+                    todo!()
+                }
+            };
+        }
+        InputKind::S3Bucket(bucket) => {
+            match output.kind {
+                OutputKind::OrdinaryFile(output_path) => {
+                    download_from_s3(bucket.as_ref(), &output_path)
+                        .await
+                        .unwrap();
                 }
                 _ => {
                     todo!()
