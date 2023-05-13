@@ -1,6 +1,6 @@
 [package]
 name = "c3p"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,3 +14,6 @@ kdam = "0.3.0"
 reqwest = { version = "0.11.17", features=["stream"]}
 url = "2.3.1"
 tokio = { version = "1.21.2", features = ["full"] }
+aws-config = "0.55.2"
+aws-sdk-s3 = "0.27.0"
+regex = "1.8.1"
