@@ -7,6 +7,7 @@ use kdam::{tqdm, BarExt, Column, RichProgress};
 use regex::Regex;
 use std::fs;
 use std::fs::File;
+use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use url::Url;
@@ -228,6 +229,17 @@ async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     Ok(())
 }
 
+async fn file_from_std_in(output_path: &str) -> Result<(), String> {
+    let mut file =
+        File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
+    //let lines = io::stdin().lines();
+    let mut lines_iter = io::stdin().lines().map(|l| l.unwrap());
+    for bytes in lines_iter {
+        file.write_all(bytes.as_bytes());
+    }
+    Ok(())
+}
+
 async fn copy(input: Input, output: Output) {
     match input.kind {
         InputKind::OrdinaryFile(input_path) => {
@@ -256,6 +268,16 @@ async fn copy(input: Input, output: Output) {
                     download_from_s3(bucket.as_ref(), &output_path)
                         .await
                         .unwrap();
+                }
+                _ => {
+                    todo!()
+                }
+            };
+        }
+        InputKind::StdIn => {
+            match output.kind {
+                OutputKind::OrdinaryFile(output_path) => {
+                    file_from_std_in(&output_path).await.unwrap();
                 }
                 _ => {
                     todo!()
