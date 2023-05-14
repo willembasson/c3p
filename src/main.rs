@@ -160,9 +160,24 @@ async fn download_from_s3(input: &str, output_path: &str) -> Result<(), String> 
     let total_size = object.content_length();
     let mut file =
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
-    let mut pb = RichProgress::new(
+    let mut pb = progress_bar(total_size as usize);
+    while let Some(bytes) = object
+        .body
+        .try_next()
+        .await
+        .or(Err(format!("Failed to get bytes from stream")))?
+    {
+        file.write_all(&bytes)
+            .or(Err("Error while writing to file".to_string()))?;
+        pb.update(bytes.len());
+    }
+    Ok(())
+}
+
+fn progress_bar(total_size: usize) -> RichProgress {
+    RichProgress::new(
         tqdm!(
-            total = total_size as usize,
+            total = total_size,
             unit_scale = true,
             unit_divisor = 1024,
             unit = "B"
@@ -186,19 +201,7 @@ async fn download_from_s3(input: &str, output_path: &str) -> Result<(), String> 
             Column::text("•"),
             Column::RemainingTime,
         ],
-    );
-    while let Some(bytes) = object
-        .body
-        .try_next()
-        .await
-        .or(Err(format!("Failed to get bytes from stream")))?
-    {
-        //let chunk = item.or(Err("Error while downloading file".to_string()))?;
-        file.write_all(&bytes)
-            .or(Err("Error while writing to file".to_string()))?;
-        pb.update(bytes.len());
-    }
-    Ok(())
+    )
 }
 
 async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
@@ -210,33 +213,7 @@ async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     let mut file =
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
     let mut stream = res.bytes_stream();
-    let mut pb = RichProgress::new(
-        tqdm!(
-            total = total_size as usize,
-            unit_scale = true,
-            unit_divisor = 1024,
-            unit = "B"
-        ),
-        vec![
-            Column::Spinner(
-                "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-                    .chars()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<String>>(),
-                80.0,
-                1.0,
-            ),
-            Column::text("🏎"),
-            Column::Bar,
-            Column::Percentage(1),
-            Column::text("•"),
-            Column::CountTotal,
-            Column::text("•"),
-            Column::Rate,
-            Column::text("•"),
-            Column::RemainingTime,
-        ],
-    );
+    let mut pb = progress_bar(total_size as usize);
     while let Some(item) = stream.next().await {
         let chunk = item.or(Err("Error while downloading file".to_string()))?;
         file.write_all(&chunk)
