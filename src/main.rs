@@ -214,13 +214,11 @@ async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
     let mut stream = res.bytes_stream();
     let mut pb = progress_bar(total_size as usize);
-    //while let Some(item) = stream.next().await {
     while let Some(bytes) = stream
         .try_next()
         .await
         .or(Err(format!("Failed to get bytes from stream {}", url)))?
     {
-        //let chunk = item.or(Err("Error while downloading file".to_string()))?;
         file.write_all(&bytes)
             .or(Err("Error while writing to file".to_string()))?;
         pb.update(bytes.len());
@@ -232,10 +230,10 @@ async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
 async fn file_from_std_in(output_path: &str) -> Result<(), String> {
     let mut file =
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
-    //let lines = io::stdin().lines();
     let lines_iter = io::stdin().lines().map(|l| l.unwrap());
     for bytes in lines_iter {
         file.write_all(bytes.as_bytes());
+        file.write_all(b"\n");
     }
     Ok(())
 }
