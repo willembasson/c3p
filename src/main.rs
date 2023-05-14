@@ -1,13 +1,13 @@
 use atty::{is, Stream};
 use aws_sdk_s3::Client;
 use clap::Parser;
-use futures_util::StreamExt;
 use futures_util::TryStreamExt;
 use kdam::term::Colorizer;
 use kdam::{tqdm, BarExt, Column, RichProgress};
 use regex::Regex;
 use std::fs;
 use std::fs::File;
+use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use url::Url;
@@ -160,9 +160,24 @@ async fn download_from_s3(input: &str, output_path: &str) -> Result<(), String> 
     let total_size = object.content_length();
     let mut file =
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
-    let mut pb = RichProgress::new(
+    let mut pb = progress_bar(total_size as usize);
+    while let Some(bytes) = object
+        .body
+        .try_next()
+        .await
+        .or(Err(format!("Failed to get bytes from stream {}", input)))?
+    {
+        file.write_all(&bytes)
+            .or(Err("Error while writing to file".to_string()))?;
+        pb.update(bytes.len());
+    }
+    Ok(())
+}
+
+fn progress_bar(total_size: usize) -> RichProgress {
+    RichProgress::new(
         tqdm!(
-            total = total_size as usize,
+            total = total_size,
             unit_scale = true,
             unit_divisor = 1024,
             unit = "B"
@@ -186,19 +201,7 @@ async fn download_from_s3(input: &str, output_path: &str) -> Result<(), String> 
             Column::text("•"),
             Column::RemainingTime,
         ],
-    );
-    while let Some(bytes) = object
-        .body
-        .try_next()
-        .await
-        .or(Err(format!("Failed to get bytes from stream")))?
-    {
-        //let chunk = item.or(Err("Error while downloading file".to_string()))?;
-        file.write_all(&bytes)
-            .or(Err("Error while writing to file".to_string()))?;
-        pb.update(bytes.len());
-    }
-    Ok(())
+    )
 }
 
 async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
@@ -210,40 +213,28 @@ async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
     let mut file =
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
     let mut stream = res.bytes_stream();
-    let mut pb = RichProgress::new(
-        tqdm!(
-            total = total_size as usize,
-            unit_scale = true,
-            unit_divisor = 1024,
-            unit = "B"
-        ),
-        vec![
-            Column::Spinner(
-                "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-                    .chars()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<String>>(),
-                80.0,
-                1.0,
-            ),
-            Column::text("🏎"),
-            Column::Bar,
-            Column::Percentage(1),
-            Column::text("•"),
-            Column::CountTotal,
-            Column::text("•"),
-            Column::Rate,
-            Column::text("•"),
-            Column::RemainingTime,
-        ],
-    );
-    while let Some(item) = stream.next().await {
-        let chunk = item.or(Err("Error while downloading file".to_string()))?;
-        file.write_all(&chunk)
+    let mut pb = progress_bar(total_size as usize);
+    while let Some(bytes) = stream
+        .try_next()
+        .await
+        .or(Err(format!("Failed to get bytes from stream {}", url)))?
+    {
+        file.write_all(&bytes)
             .or(Err("Error while writing to file".to_string()))?;
-        pb.update(chunk.len());
+        pb.update(bytes.len());
     }
     pb.write("downloaded".colorize("bold green"));
+    Ok(())
+}
+
+async fn file_from_std_in(output_path: &str) -> Result<(), String> {
+    let mut file =
+        File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
+    let lines_iter = io::stdin().lines().map(|l| l.unwrap());
+    for bytes in lines_iter {
+        file.write_all(bytes.as_bytes());
+        file.write_all(b"\n");
+    }
     Ok(())
 }
 
@@ -281,6 +272,16 @@ async fn copy(input: Input, output: Output) {
                 }
             };
         }
+        InputKind::StdIn => {
+            match output.kind {
+                OutputKind::OrdinaryFile(output_path) => {
+                    file_from_std_in(&output_path).await.unwrap();
+                }
+                _ => {
+                    todo!()
+                }
+            };
+        }
         _ => {
             todo!()
         }
@@ -291,12 +292,10 @@ async fn copy(input: Input, output: Output) {
 async fn main() {
     let cli = Cli::parse();
     if let Some(input) = cli.input.as_deref() {
-        let input_string = input.to_string();
-        let input: Input = to_input(input_string);
+        let input: Input = to_input(input.to_string());
         println!("{:#?}", input.kind);
         if let Some(output) = cli.output.as_deref() {
-            let output_string = output.to_string();
-            let output: Output = to_output(output_string);
+            let output: Output = to_output(output.to_string());
             println!("{:#?}", output.kind);
             copy(input, output).await;
         } else {
