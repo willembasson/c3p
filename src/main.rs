@@ -233,7 +233,7 @@ async fn file_from_std_in(output_path: &str) -> Result<(), String> {
     let mut file =
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
     //let lines = io::stdin().lines();
-    let mut lines_iter = io::stdin().lines().map(|l| l.unwrap());
+    let lines_iter = io::stdin().lines().map(|l| l.unwrap());
     for bytes in lines_iter {
         file.write_all(bytes.as_bytes());
     }
