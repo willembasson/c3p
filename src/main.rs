@@ -1,7 +1,6 @@
 use atty::{is, Stream};
 use aws_sdk_s3::Client;
 use clap::Parser;
-use futures_util::StreamExt;
 use futures_util::TryStreamExt;
 use kdam::term::Colorizer;
 use kdam::{tqdm, BarExt, Column, RichProgress};
@@ -165,7 +164,7 @@ async fn download_from_s3(input: &str, output_path: &str) -> Result<(), String> 
         .body
         .try_next()
         .await
-        .or(Err(format!("Failed to get bytes from stream")))?
+        .or(Err(format!("Failed to get bytes from stream {}", input)))?
     {
         file.write_all(&bytes)
             .or(Err("Error while writing to file".to_string()))?;
@@ -214,11 +213,16 @@ async fn download_file(url: &str, output_path: &str) -> Result<(), String> {
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
     let mut stream = res.bytes_stream();
     let mut pb = progress_bar(total_size as usize);
-    while let Some(item) = stream.next().await {
-        let chunk = item.or(Err("Error while downloading file".to_string()))?;
-        file.write_all(&chunk)
+    //while let Some(item) = stream.next().await {
+    while let Some(bytes) = stream
+        .try_next()
+        .await
+        .or(Err(format!("Failed to get bytes from stream {}", url)))?
+    {
+        //let chunk = item.or(Err("Error while downloading file".to_string()))?;
+        file.write_all(&bytes)
             .or(Err("Error while writing to file".to_string()))?;
-        pb.update(chunk.len());
+        pb.update(bytes.len());
     }
     pb.write("downloaded".colorize("bold green"));
     Ok(())
@@ -268,12 +272,10 @@ async fn copy(input: Input, output: Output) {
 async fn main() {
     let cli = Cli::parse();
     if let Some(input) = cli.input.as_deref() {
-        let input_string = input.to_string();
-        let input: Input = to_input(input_string);
+        let input: Input = to_input(input.to_string());
         println!("{:#?}", input.kind);
         if let Some(output) = cli.output.as_deref() {
-            let output_string = output.to_string();
-            let output: Output = to_output(output_string);
+            let output: Output = to_output(output.to_string());
             println!("{:#?}", output.kind);
             copy(input, output).await;
         } else {
