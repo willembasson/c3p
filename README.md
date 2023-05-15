@@ -34,6 +34,9 @@ Usage: c3p [OPTIONS] [INPUT] [OUTPUT]
 ### Copy stdin to file
 `cat some_file.txt | c3p - /tmp/file.txt`
 
+### Copy from scp to file
+`c3p scp://user:pass@server.com:/home/user/.barshrc ~/.bashrc_remote`
+
 ### Copy from s3 to s3 (Not implemented yet)
 `c3p s3://source_bucket/folder/file.txt s3://target_bucket/folder/file.txt`
 

@@ -1,6 +1,6 @@
 [package]
 name = "c3p"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -17,3 +17,5 @@ tokio = { version = "1.21.2", features = ["full"] }
 aws-config = "0.55.2"
 aws-sdk-s3 = "0.27.0"
 regex = "1.8.1"
+remotefs-ssh = "0.2.0"
+remotefs = "0.2.0"

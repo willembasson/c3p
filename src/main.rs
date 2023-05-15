@@ -5,10 +5,14 @@ use futures_util::TryStreamExt;
 use kdam::term::Colorizer;
 use kdam::{tqdm, BarExt, Column, RichProgress};
 use regex::Regex;
+use remotefs::RemoteFs;
+use remotefs_ssh::{ScpFs, SshOpts};
 use std::fs;
 use std::fs::File;
 use std::io;
+use std::io::Read;
 use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
 
@@ -174,6 +178,12 @@ async fn download_from_s3(input: &str, output_path: &str) -> Result<(), String> 
     Ok(())
 }
 
+fn ssh_client(user: &str, pass: &str, host: &str) -> ScpFs {
+    let mut client: ScpFs = SshOpts::new(host).username(user).password(pass).into();
+    client.connect().unwrap();
+    client
+}
+
 fn progress_bar(total_size: usize) -> RichProgress {
     RichProgress::new(
         tqdm!(
@@ -232,9 +242,28 @@ async fn file_from_std_in(output_path: &str) -> Result<(), String> {
         File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
     let lines_iter = io::stdin().lines().map(|l| l.unwrap());
     for bytes in lines_iter {
-        file.write_all(bytes.as_bytes());
-        file.write_all(b"\n");
+        file.write_all(bytes.as_bytes()).unwrap();
+        file.write_all(b"\n").unwrap();
     }
+    Ok(())
+}
+
+async fn file_from_scp(scp_string: String, output_path: &str) -> Result<(), String> {
+    let mut file =
+        File::create(output_path).or(Err(format!("Failed to create file '{}'", output_path)))?;
+    let re = Regex::new(r"^scp://(.+?):(.+?)@(.+?):(.+)").unwrap();
+    let caps = re.captures(&scp_string).unwrap();
+    let user = &caps[1];
+    let pass = &caps[2];
+    let host = &caps[3];
+    let path = &caps[4];
+    println!("user: {}, host: {}, path: {}", user, host, path);
+    let mut client = ssh_client(user, pass, host);
+    let mut reader = client.open(&Path::new(path)).unwrap();
+    let mut buf: Vec<u8> = vec![];
+    reader.read_to_end(&mut buf).unwrap();
+    file.write_all(&buf)
+        .or(Err("Error while writing to file".to_string()))?;
     Ok(())
 }
 
@@ -282,8 +311,15 @@ async fn copy(input: Input, output: Output) {
                 }
             };
         }
-        _ => {
-            todo!()
+        InputKind::ScpSource(scp_string) => {
+            match output.kind {
+                OutputKind::OrdinaryFile(output_path) => {
+                    file_from_scp(scp_string, &output_path).await.unwrap();
+                }
+                _ => {
+                    todo!()
+                }
+            };
         }
     }
 }
