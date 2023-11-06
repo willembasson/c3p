@@ -1,21 +1,20 @@
 [package]
 name = "c3p"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 atty = "0.2.14"
-clap = { version = "4.2.7", features = ["derive"] }
-futures = "0.3.28"
-futures-util = "0.3.28"
-kdam = "0.3.0"
-reqwest = { version = "0.11.17", features=["stream"]}
-url = "2.3.1"
-tokio = { version = "1.21.2", features = ["full"] }
-aws-config = "0.55.2"
-aws-sdk-s3 = "0.27.0"
-regex = "1.8.1"
-remotefs-ssh = "0.2.0"
+clap = { version = "4.4.7", features = ["derive"] }
+futures-util = "0.3.29"
+kdam = { version = "0.5.0", features = ["rich", "spinner"] }
+reqwest = { version = "0.11.22", features = ["stream"] }
+url = "2.4.1"
+aws-config = "0.57.1"
+aws-sdk-s3 = "0.35.0"
+regex = "1.10.2"
+remotefs-ssh = "0.2.1"
 remotefs = "0.2.0"
+tokio = { version = "1.33.0", features = ["full"] }

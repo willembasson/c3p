@@ -3,7 +3,7 @@ use aws_sdk_s3::Client;
 use clap::Parser;
 use futures_util::TryStreamExt;
 use kdam::term::Colorizer;
-use kdam::{tqdm, BarExt, Column, RichProgress};
+use kdam::{tqdm, BarExt, Column, RichProgress, Spinner};
 use regex::Regex;
 use remotefs::RemoteFs;
 use remotefs_ssh::{ScpFs, SshOpts};
@@ -193,22 +193,15 @@ fn progress_bar(total_size: usize) -> RichProgress {
             unit = "B"
         ),
         vec![
-            Column::Spinner(
-                "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-                    .chars()
-                    .map(|x| x.to_string())
-                    .collect::<Vec<String>>(),
-                80.0,
-                1.0,
-            ),
-            Column::text("🏎"),
-            Column::Bar,
+            Column::Spinner(Spinner::new(&["⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"], 80.0, 1.0)),
+            Column::Text("🏎".to_owned()),
+            Column::Text("|".to_owned()),
             Column::Percentage(1),
-            Column::text("•"),
+            Column::Text("•".to_owned()),
             Column::CountTotal,
-            Column::text("•"),
+            Column::Text("•".to_owned()),
             Column::Rate,
-            Column::text("•"),
+            Column::Text("•".to_owned()),
             Column::RemainingTime,
         ],
     )
